@@ -8,9 +8,9 @@ class BaseConfig:
     DEBUG = False
     TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-    SECRET_KEY = os.getenv('SECRET_KEY', 'my_strong_key')
-    AUTH_TOKEN_EXPIRY_DAYS = 30
-    AUTH_TOKEN_EXPIRY_SECONDS = 3000
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+    AUTHORIZED_APP = os.getenv('AUTHORIZED_APP')
+    AUTH_TOKEN_EXPIRY_DAYS = 3650
 
 
 class DevelopmentConfig(BaseConfig):
@@ -18,8 +18,6 @@ class DevelopmentConfig(BaseConfig):
     Development application configuration
     """
     DEBUG = True
-    AUTH_TOKEN_EXPIRY_DAYS = 1
-    AUTH_TOKEN_EXPIRY_SECONDS = 20
 
 
 class ProductionConfig(BaseConfig):
@@ -27,5 +25,4 @@ class ProductionConfig(BaseConfig):
     Production application configuration
     """
     DEBUG = True
-    AUTH_TOKEN_EXPIRY_DAYS = 30
-    AUTH_TOKEN_EXPIRY_SECONDS = 20
+

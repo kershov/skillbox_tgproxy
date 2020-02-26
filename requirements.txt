@@ -9,9 +9,9 @@ gunicorn==20.0.4
 idna==2.9
 itsdangerous==1.1.0
 Jinja2==2.11.1
-jwt==0.6.1
 MarkupSafe==1.1.1
 pycparser==2.19
+PyJWT==1.7.1
 python-dotenv==0.11.0
 requests==2.23.0
 six==1.14.0
