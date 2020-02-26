@@ -14,8 +14,8 @@ def method_not_allowed(e):
     return response(False, 405, "Method not allowed.")
 
 
-@token_required
 @app.route('/api/send_message', methods=['POST'])
+@token_required
 def process_incoming_proxy_request():
     message = request.json.get("message")
 
