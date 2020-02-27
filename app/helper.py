@@ -1,9 +1,10 @@
 import datetime
 from functools import wraps
 
+import click
 import jwt
 import requests
-from flask import jsonify, make_response, request
+from flask import jsonify, make_response, request, json
 
 from app import app
 
@@ -21,9 +22,9 @@ def send_message(message):
     url = f"https://api.telegram.org/bot{app.config['TELEGRAM_TOKEN']}/sendMessage"
 
     payload = {
-        "chat_id": app.config['TELEGRAM_CHAT_ID'],
-        "parse_mode": "MarkdownV2",
-        "text": message
+        'chat_id': app.config['TELEGRAM_CHAT_ID'],
+        'parse_mode': 'MarkdownV2',
+        'text': message
     }
 
     try:
@@ -34,34 +35,33 @@ def send_message(message):
         return make_response(api_response.json(), api_response.status_code)
 
 
-def encode_auth_token(user_id):
-    try:
-        payload = {
-            'iat': datetime.datetime.utcnow(),
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=app.config['AUTH_TOKEN_EXPIRY_DAYS']),
-            'sub': user_id
-        }
+def encode_auth_token(token_id, secret_key=None, expiry_days=None, algorithm=None):
+    secret_key = secret_key or app.config['JWT_SECRET_KEY']
+    expiry_days = expiry_days or app.config['AUTH_TOKEN_EXPIRY_DAYS']
+    algorithm = algorithm or 'HS256'
 
-        return jwt.encode(
-            payload,
-            app.config['JWT_SECRET_KEY'],
-            algorithm='HS256'
-        )
+    payload = {
+        'iat': datetime.datetime.utcnow(),
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=expiry_days),
+        'id': token_id
+    }
 
-    except Exception as e:
-        return e
+    return jwt.encode(payload=payload, key=secret_key, algorithm=algorithm)
 
 
 def decode_auth_token(token):
     try:
         payload = jwt.decode(token, app.config['JWT_SECRET_KEY'], algorithms='HS256')
-        return payload['sub']
+        return payload['id']
 
     except jwt.ExpiredSignatureError:
-        return response(False, 403, 'Signature expired.')
+        return 'Signature expired.'
 
     except jwt.InvalidTokenError:
-        return response(False, 403, 'Invalid token.')
+        return 'Invalid token.'
+
+    except KeyError:
+        return 'Invalid token data.'
 
 
 def token_required(f):
@@ -70,10 +70,29 @@ def token_required(f):
         token = request.json.get("token")
 
         if not token:
-            return response(False, 403, 'Token is missing.')
+            return response(False, 401, 'Token is missing.')
 
         decoded_token = decode_auth_token(token)
 
-        return f(*args, **kwargs) if decoded_token == app.config['AUTHORIZED_APP'] else decoded_token
+        if decoded_token == app.config['AUTHORIZED_APP']:
+            return f(*args, **kwargs)
+
+        elif isinstance(decoded_token, str):
+            message = decoded_token
+            return response(False, 401, message)
 
     return decorated
+
+
+@click.command("jwtgen", help="Generate JWT token.")
+@click.option("--token-id", help="User/app/whatever id for your token.")
+@click.option("--secret", help="Secret for your token.")
+@click.option("--exp", default=30, help="Number of days from now your token to be expired.")
+@click.option("--algorithm", help="Algorithm (default 'HS256').")
+def get_jwt_token(token_id, secret, exp, algorithm):
+    token = encode_auth_token(token_id, secret_key=secret, expiry_days=exp, algorithm=algorithm)
+    result = {"token": token.decode("UTF-8")}
+    click.echo(json.dumps(result))
+
+
+app.cli.add_command(get_jwt_token)
