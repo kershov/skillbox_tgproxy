@@ -4,18 +4,21 @@ from functools import wraps
 import click
 import jwt
 import requests
-from flask import jsonify, make_response, request, json
+from flask import jsonify, make_response, request, json, abort
+from requests import HTTPError
 
 from app import app
 
 
-def response(status, status_code, message=None):
-    payload = {'ok': status}
-
-    if message:
-        payload["message"] = message
-
+def response(status, status_code, **kwargs):
+    payload = {} if not kwargs else {**kwargs}
+    payload['ok'] = status
+    payload['code'] = status_code
     return make_response(jsonify(payload), status_code)
+
+
+def error_response(error):
+    return response(False, error.code, error=f'{error.name}', message=f'{error.description}')
 
 
 def send_message(message):
@@ -29,8 +32,18 @@ def send_message(message):
 
     try:
         api_response = requests.post(url, json=payload)
-    except requests.exceptions.ConnectionError as e:
-        return response(False, 400, e.args[0].args[0])
+        api_response.raise_for_status()
+    except HTTPError as e:
+        data = e.response.json()
+        code = data.pop('error_code', None)
+        message = data.pop('description', None)
+
+        if code and message:
+            abort(code, message)
+
+        return abort(400, f'HTTP Error occurred: {e}.')
+    except Exception as e:
+        return abort(400, f'An error occurred: {e}.')
     else:
         return make_response(api_response.json(), api_response.status_code)
 
@@ -67,10 +80,10 @@ def decode_auth_token(token):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.json.get("token")
+        token = request.json.pop('token', None)
 
         if not token:
-            return response(False, 401, 'Token is missing.')
+            return abort(401, 'Token is missing.')
 
         decoded_token = decode_auth_token(token)
 
@@ -79,7 +92,7 @@ def token_required(f):
 
         elif isinstance(decoded_token, str):
             message = decoded_token
-            return response(False, 401, message)
+            return abort(401, message)
 
     return decorated
 

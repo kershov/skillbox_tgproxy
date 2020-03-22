@@ -1,25 +1,20 @@
 from flask import request
 
 from app import app
-from app.helper import response, token_required, send_message
-
-
-@app.errorhandler(404)
-def resource_not_found(e):
-    return response(False, 404, 'Resource not found.')
-
-
-@app.errorhandler(405)
-def method_not_allowed(e):
-    return response(False, 405, 'Method not allowed.')
+from app.helper import token_required, send_message, error_response, abort
 
 
 @app.route('/api/send_message', methods=['POST'])
 @token_required
 def process_incoming_proxy_request():
-    message = request.json.get("message")
+    message = request.json.pop("message", None)
 
     if not message:
-        return response(False, 403, 'Message is missing.')
+        return abort(400, 'Message is missing.')
 
     return send_message(message)
+
+
+@app.errorhandler(Exception)
+def handle_error(e):
+    return error_response(e)
