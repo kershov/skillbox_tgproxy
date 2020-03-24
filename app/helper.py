@@ -31,7 +31,7 @@ def send_message(message):
     }
 
     try:
-        api_response = requests.post(url, timeout=(30, 60), json=payload)
+        api_response = requests.post(url, timeout=app.config['TELEGRAM_TIMEOUT'], json=payload)
         api_response.raise_for_status()
     except HTTPError as e:
         data = e.response.json()

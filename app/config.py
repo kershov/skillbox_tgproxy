@@ -8,6 +8,7 @@ class BaseConfig:
     DEBUG = False
     TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+    TELEGRAM_TIMEOUT = (30, 60)
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     AUTHORIZED_APP = os.getenv('AUTHORIZED_APP')
     AUTH_TOKEN_EXPIRY_DAYS = 3650
