@@ -31,7 +31,7 @@ def send_message(message):
     }
 
     try:
-        api_response = requests.post(url, json=payload)
+        api_response = requests.post(url, timeout=(30, 60), json=payload)
         api_response.raise_for_status()
     except HTTPError as e:
         data = e.response.json()
@@ -80,19 +80,29 @@ def decode_auth_token(token):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.json.pop('token', None)
+        data = None
 
-        if not token:
-            return abort(401, 'Token is missing.')
+        if 'application/json' not in request.content_type:
+            abort(400, "Invalid content type.")
 
+        if not request.data:
+            abort(400, 'Empty body.')
+
+        try:
+            data = request.get_json()
+        except Exception:
+            abort(400, "Invalid body format: data can't be decoded.")
+
+        if {'token', 'message'} != set(data):
+            abort(400, 'Invalid body format.')
+
+        token, message = data.pop('token'), data.pop('message')
         decoded_token = decode_auth_token(token)
 
-        if decoded_token == app.config['AUTHORIZED_APP']:
-            return f(*args, **kwargs)
+        if not isinstance(decoded_token, str) or decoded_token != app.config['AUTHORIZED_APP']:
+            return abort(401, decoded_token)
 
-        elif isinstance(decoded_token, str):
-            message = decoded_token
-            return abort(401, message)
+        return f(message, *args, **kwargs)
 
     return decorated
 
